@@ -2,7 +2,7 @@
 // Created by Vadim Gush on 27.12.2019.
 //
 
-#include "RayTracer.h"
+#include "RayTracer.cuh"
 
 #include <glm/geometric.hpp>
 

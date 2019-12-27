@@ -7,7 +7,7 @@
 #include <device_launch_parameters.h>
 
 #include "Display.h"
-#include "RayTracer.h"
+#include "RayTracer.cuh"
 
 using namespace std;
 
