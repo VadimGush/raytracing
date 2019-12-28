@@ -21,12 +21,17 @@ int main() {
         return -1;
     }
 
-    Display display{display_width, display_height};
+    try {
+        Display display{display_width, display_height};
 
-    dim3 threads(16, 16);
-    dim3 blocks(display_width / threads.x + 1, display_height / threads.y + 1);
+        dim3 threads(16, 16);
+        dim3 blocks(display_width / threads.x + 1, display_height / threads.y + 1);
 
-    RayTracer::RenderScreen<<<blocks, threads>>>(display.GetDisplay(), display_width, display_height);
-    image << display;
+        RayTracer::RenderScreen<<<blocks, threads>>>(display.GetDisplay(), display_width, display_height);
+        image << display;
+    } catch (const exception& e) {
+        cout << "ERROR: " << e.what() << endl;
+    }
+
     return 0;
 }

@@ -8,13 +8,17 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <exception>
 
 using namespace glm;
 using namespace std;
 
 Display::Display(const int width, const int height) : width_(width), height_(height) {
     cout << "CUDA: Allocate memory for display" << endl;
-    cudaMalloc(reinterpret_cast<void **>(&display_), sizeof(vec3) * width * height);
+    int status = cudaMalloc(reinterpret_cast<void **>(&display_), sizeof(vec3) * width * height);
+
+    if (status != 0)
+        throw runtime_error("CUDA memory allocation failed! Try to run program again.");
 }
 
 vec3* Display::GetDisplay() {
@@ -48,6 +52,7 @@ ostream& operator<<(ostream& output, const Display& d) {
         for (int x = 0; x < d.width_; x++) {
             index = d.width_ * y + x;
             vec3& pixel = result[index];
+            pixel = {sqrt(pixel.r), sqrt(pixel.g), sqrt(pixel.b)};
             Filter(pixel);
             output << (int)(pixel.r * 255.9) << " " << (int)(pixel.g * 255.9) << " " << (int)(pixel.b * 255.9) << "\n";
         }
