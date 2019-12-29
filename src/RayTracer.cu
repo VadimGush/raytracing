@@ -102,12 +102,13 @@ __device__ vec3 Render(Sphere* spheres, const int spheres_count, const vec3& cam
 }
 
 __global__ void RayTracer::RenderScreen(
-        Sphere* spheres,
+        cuda_device_ptr<Sphere> spheres,
         const int spheres_count,
-        vec3* display,
+        cuda_device_ptr<vec3> display_ptr,
         const int display_width,
         const int display_height) {
 
+    vec3* display = display_ptr.get();
     int xi = threadIdx.x + blockDim.x * blockIdx.x;
     int yi = threadIdx.y + blockDim.y * blockIdx.y;
     vec3& pixel = display[xi + yi * display_width];
@@ -124,7 +125,7 @@ __global__ void RayTracer::RenderScreen(
             float aspect = (float) display_width / display_height;
             x *= aspect;
 
-            color += Render(spheres, spheres_count, {0,0,0}, {x, y, -1}, 0, rand);
+            color += Render(spheres.get(), spheres_count, {0,0,0}, {x, y, -1}, 0, rand);
         }
         pixel = color / (float)RAY_COUNT;
 

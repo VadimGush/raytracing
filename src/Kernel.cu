@@ -20,11 +20,6 @@ ostream& operator<<(ostream& output, const vec3& vector) {
 
 int main() {
 
-    ofstream image{"image.ppm", ios::out};
-    if (!image) {
-        cout << "Creating image file failed" << endl;
-        return -1;
-    }
 
     try {
         Display display{display_width, display_height};
@@ -41,11 +36,16 @@ int main() {
         device_spheres.copy_from(spheres.data());
 
         RayTracer::RenderScreen<<<blocks, threads>>>(
-                device_spheres.get_pointer(),
+                device_spheres.get_device_pointer(),
                 spheres.size(),
                 display.GetDisplay(), display_width, display_height
         );
 
+        ofstream image{"image.ppm", ios::out};
+        if (!image) {
+            cout << "Creating image file failed" << endl;
+            return -1;
+        }
         image << display;
     } catch (const exception& e) {
         cout << "ERROR: " << e.what() << endl;

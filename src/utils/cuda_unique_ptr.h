@@ -10,6 +10,28 @@
 #include <exception>
 
 template <typename T>
+class cuda_device_ptr {
+public:
+
+    explicit cuda_device_ptr(T* pointer, const size_t size) : device_pointer_(pointer), size_(size) {}
+
+    // host is not allowed to call __device__ functions
+    // this is why this pointer can be accessible only on GPU
+    __device__ T* get() {
+        return device_pointer_;
+    }
+
+    // if this pointer to array then we can provide size of array
+    __device__ size_t size() {
+        return size_;
+    }
+
+private:
+    const size_t size_;
+    T* device_pointer_;
+};
+
+template <typename T>
 class cuda_unique_ptr {
 public:
     cuda_unique_ptr() : size_(1) {
@@ -47,12 +69,8 @@ public:
             throw std::runtime_error("Failed to copy memory from device to host.");
     }
 
-    const T* get_pointer() const {
-        return device_pointer_;
-    };
-
-    T* get_pointer() {
-        return device_pointer_;
+    cuda_device_ptr<T> get_device_pointer() {
+        return cuda_device_ptr<T>(device_pointer_, size_);
     }
 
     ~cuda_unique_ptr() {

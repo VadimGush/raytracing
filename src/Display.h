@@ -14,7 +14,7 @@ class Display {
 public:
     Display(int, int);
 
-    glm::vec3* GetDisplay();
+    cuda_device_ptr<glm::vec3> GetDisplay();
 
     friend std::ostream& operator<<(std::ostream&, Display& display);
 
