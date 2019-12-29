@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <glm/vec3.hpp>
+#include "utils/cuda_unique_ptr.h"
 
 class Display {
 public:
@@ -15,12 +16,10 @@ public:
 
     glm::vec3* GetDisplay();
 
-    ~Display();
-
-    friend std::ostream& operator<<(std::ostream&, const Display& display);
+    friend std::ostream& operator<<(std::ostream&, Display& display);
 
 private:
-    glm::vec3* display_;
+    cuda_unique_ptr<glm::vec3> display_;
     int width_;
     int height_;
 };

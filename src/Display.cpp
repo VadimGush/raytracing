@@ -4,7 +4,6 @@
 
 #include "Display.h"
 
-#include <cuda_runtime_api.h>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -13,21 +12,10 @@
 using namespace glm;
 using namespace std;
 
-Display::Display(const int width, const int height) : width_(width), height_(height) {
-    cout << "CUDA: Allocate memory for display" << endl;
-    int status = cudaMalloc(reinterpret_cast<void **>(&display_), sizeof(vec3) * width * height);
-
-    if (status != 0)
-        throw runtime_error("CUDA memory allocation failed! Try to run program again.");
-}
+Display::Display(const int width, const int height) : width_(width), height_(height), display_(width * height) {}
 
 vec3* Display::GetDisplay() {
-    return display_;
-}
-
-Display::~Display() {
-    cout << "CUDA: Free display memory" << endl;
-    cudaFree(display_);
+    return display_.get_pointer();
 }
 
 inline void Clamp(float& value) {
@@ -41,10 +29,12 @@ inline void Filter(vec3& v) {
     Clamp(v.z);
 }
 
-ostream& operator<<(ostream& output, const Display& d) {
+ostream& operator<<(ostream& output, Display& d) {
     vector<vec3> result;
     result.reserve(d.width_ * d.height_);
-    cudaMemcpy(result.data(), d.display_, sizeof(vec3) * d.width_ * d.height_, cudaMemcpyDeviceToHost);
+
+    d.display_.copy_to(result.data());
+
     output << "P3" << "\n" << d.width_ << " " << d.height_ << "\n" << 255 << "\n";
 
     int index = 0;
@@ -52,8 +42,8 @@ ostream& operator<<(ostream& output, const Display& d) {
         for (int x = 0; x < d.width_; x++) {
             index = d.width_ * y + x;
             vec3& pixel = result[index];
-            pixel = {sqrt(pixel.r), sqrt(pixel.g), sqrt(pixel.b)};
             Filter(pixel);
+            pixel = {sqrt(pixel.r), sqrt(pixel.g), sqrt(pixel.b)};
             output << (int)(pixel.r * 255.9) << " " << (int)(pixel.g * 255.9) << " " << (int)(pixel.b * 255.9) << "\n";
         }
     }

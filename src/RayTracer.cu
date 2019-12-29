@@ -7,17 +7,23 @@
 #include <glm/geometric.hpp>
 #include <cstdlib>
 
-#define RAY_COUNT 10
+#define RAY_COUNT 50
 
 using namespace glm;
 
-struct Hit {
-    float distance;
-    vec3 color;
-    vec3 normal;
+class Rand {
+public:
+    __device__ Rand(const int);
+
+    // generate real number in [0, 1]
+    __device__ float Float();
+
+    // generate real number in [-1, 1]
+    __device__ float FullFloat();
+private:
+    int seed_;
 };
 
-// Random number generator
 __device__ unsigned long xorshf96(int value) {
     unsigned long x=123456789 + value, y=362436069, z=521288629;
     unsigned long t;
@@ -31,22 +37,21 @@ __device__ unsigned long xorshf96(int value) {
     return z;
 }
 
-class Rand {
-public:
-    __device__ Rand(const int seed) : seed_(seed) {}
+__device__ Rand::Rand(const int seed) : seed_(seed) {}
 
-    // generate real number in [0, 1]
-    __device__ float Float() {
-        seed_++;
-        return static_cast<float>(xorshf96(seed_) % 10000) / 10000.0f;
-    }
+__device__ float Rand::Float() {
+    seed_++;
+    return static_cast<float>(xorshf96(seed_) % 10000) / 10000.0f;
+}
 
-    // generate real number in [-1, 1]
-    __device__ float FullFloat() {
-        return Float() * 2 - 1;
-    }
-private:
-    int seed_;
+__device__ float Rand::FullFloat() {
+    return Float() * 2 - 1;
+}
+
+struct Hit {
+    float distance;
+    vec3 color;
+    vec3 normal;
 };
 
 __device__ Hit HitSphere(const vec3& center, const float radius, const vec3& origin, const vec3& direction) {
@@ -66,37 +71,39 @@ __device__ Hit HitSphere(const vec3& center, const float radius, const vec3& ori
     }
 }
 
-__device__ vec3 Render(const vec3& camera_origin, const vec3& camera_direction, int iter, Rand& rand) {
+__device__ vec3 Render(Sphere* spheres, const int spheres_count, const vec3& camera_origin, const vec3& camera_direction, int iter, Rand& rand) {
     vec3 sphere_center = vec3{0, 0, -1};
-    Hit target = HitSphere(sphere_center, 0.3, camera_origin, camera_direction);
-    Hit floor = HitSphere({0, -2.31, -1}, 2, camera_origin, camera_direction);
 
-    Hit hit = target;
-    if (hit.distance > 0) {
-        if (floor.distance > 0 && hit.distance > floor.distance)
-            hit = floor;
-    } else {
-        hit = floor;
+    Hit hit{-1, {0,0,0}, {0,0,0}};
+    for (int i = 0; i < spheres_count; i++) {
+        Sphere& sphere = spheres[i];
+        Hit current = HitSphere(sphere.position, sphere.radius, camera_origin, camera_direction);
+
+        if (hit.distance <= 0) {
+            hit = current;
+        } else if (hit.distance > current.distance && current.distance > 0) {
+            hit = current;
+        }
     }
 
     if (hit.distance > 0.0001) {
 
         vec3 random{rand.Float()*2-1, rand.Float()*2-1, rand.Float()*2-1};
-
         vec3 point = camera_origin + camera_direction * hit.distance;
-        vec3 t = point + normalize(hit.normal + random / 3.0f);
 
         iter++;
-        if (iter < 5)
-            return 0.5f * Render(point, t - point, iter, rand);
+        if (iter < 6)
+            return 0.5f * Render(spheres, spheres_count, point, normalize(hit.normal + random), iter, rand);
         else
             return {0,0,0};
     } else {
-        return {0.75,0.75,1};
+        return {0.5,0.5,1};
     }
 }
 
 __global__ void RayTracer::RenderScreen(
+        Sphere* spheres,
+        const int spheres_count,
         vec3* display,
         const int display_width,
         const int display_height) {
@@ -117,7 +124,7 @@ __global__ void RayTracer::RenderScreen(
             float aspect = (float) display_width / display_height;
             x *= aspect;
 
-            color += Render({0,0,0}, {x, y, -1}, 0, rand);
+            color += Render(spheres, spheres_count, {0,0,0}, {x, y, -1}, 0, rand);
         }
         pixel = color / (float)RAY_COUNT;
 
