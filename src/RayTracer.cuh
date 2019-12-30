@@ -12,8 +12,9 @@
 namespace RayTracer {
 
     __global__ void RenderScreen(
-            cuda_device_ptr<Sphere>, const int spheres_count,
-            cuda_device_ptr<glm::vec3>, const int display_width, const int display_height
+            CUDA::device_ptr<Sphere>, const int spheres_count,
+            CUDA::device_ptr<float>, const int numbers_per_thread,
+            CUDA::device_ptr<glm::vec3>, const int display_width, const int display_height
     );
 
 };

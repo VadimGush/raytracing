@@ -11,48 +11,22 @@
 
 using namespace glm;
 
-class Rand {
-public:
-    __device__ Rand(const int);
-
-    // generate real number in [0, 1]
-    __device__ float Float();
-
-    // generate real number in [-1, 1]
-    __device__ float FullFloat();
-private:
-    int seed_;
-};
-
-__device__ unsigned long xorshf96(int value) {
-    unsigned long x=123456789 + value, y=362436069, z=521288629;
-    unsigned long t;
-    x ^= x << 16;
-    x ^= x >> 5;
-    x ^= x << 1;
-    t = x;
-    x = y;
-    y = z;
-    z = t ^ x ^ y;
-    return z;
-}
-
-__device__ Rand::Rand(const int seed) : seed_(seed) {}
-
-__device__ float Rand::Float() {
-    seed_++;
-    return static_cast<float>(xorshf96(seed_) % 10000) / 10000.0f;
-}
-
-__device__ float Rand::FullFloat() {
-    return Float() * 2 - 1;
-}
-
 struct Hit {
     float distance;
     vec3 color;
     vec3 normal;
 };
+
+struct LocalRandom {
+    float* random_numbers;
+    const int max;
+};
+
+__device__ float RandomFloat(const LocalRandom& random, int& random_id) {
+    random_id++;
+    if (random_id >= random.max) random_id = 0;
+    return random.random_numbers[random_id];
+}
 
 __device__ Hit HitSphere(const vec3& center, const float radius, const vec3& origin, const vec3& direction) {
     vec3 oc = origin - center;
@@ -71,40 +45,54 @@ __device__ Hit HitSphere(const vec3& center, const float radius, const vec3& ori
     }
 }
 
-__device__ vec3 Render(Sphere* spheres, const int spheres_count, const vec3& camera_origin, const vec3& camera_direction, int iter, Rand& rand) {
-    vec3 sphere_center = vec3{0, 0, -1};
+__device__ vec3 RandomVector(const LocalRandom random, int& random_id) {
+    return {
+        RandomFloat(random, random_id) * 2 - 1,
+        RandomFloat(random, random_id) * 2 - 1,
+        RandomFloat(random, random_id) * 2 - 1
+    };
+}
+
+__device__ vec3 Render(Sphere* spheres, const int spheres_count, const vec3& camera_origin, const vec3& camera_direction, int iter, const LocalRandom local_random, int& random_id) {
 
     Hit hit{-1, {0,0,0}, {0,0,0}};
+    Sphere current_sphere;
     for (int i = 0; i < spheres_count; i++) {
         Sphere& sphere = spheres[i];
         Hit current = HitSphere(sphere.position, sphere.radius, camera_origin, camera_direction);
 
-        if (hit.distance <= 0) {
-            hit = current;
-        } else if (hit.distance > current.distance && current.distance > 0) {
+        if (hit.distance <= 0 || (hit.distance > current.distance && current.distance > 0)) {
+            current_sphere = sphere;
             hit = current;
         }
     }
 
     if (hit.distance > 0.0001) {
 
-        vec3 random{rand.Float()*2-1, rand.Float()*2-1, rand.Float()*2-1};
         vec3 point = camera_origin + camera_direction * hit.distance;
 
         iter++;
-        if (iter < 6)
-            return 0.5f * Render(spheres, spheres_count, point, normalize(hit.normal + random), iter, rand);
-        else
+        if (iter < 6) {
+            if (!current_sphere.light) {
+                return 0.5f * current_sphere.color * Render(spheres, spheres_count, point, normalize(hit.normal + RandomVector(local_random, random_id)), iter, local_random, random_id);
+            } else {
+                return current_sphere.color;
+            }
+        } else {
             return {0,0,0};
+        }
     } else {
-        return {0.5,0.5,1};
+        return {0.1,0.1,0.1};
     }
 }
 
+
 __global__ void RayTracer::RenderScreen(
-        cuda_device_ptr<Sphere> spheres,
+        CUDA::device_ptr<Sphere> spheres,
         const int spheres_count,
-        cuda_device_ptr<vec3> display_ptr,
+        CUDA::device_ptr<float> random_numbers,
+        const int numbers_per_thread,
+        CUDA::device_ptr<vec3> display_ptr,
         const int display_width,
         const int display_height) {
 
@@ -113,19 +101,23 @@ __global__ void RayTracer::RenderScreen(
     int yi = threadIdx.y + blockDim.y * blockIdx.y;
     vec3& pixel = display[xi + yi * display_width];
 
-    if (xi < display_width && yi < display_height) {
+    LocalRandom random{
+        &random_numbers.get()[(xi + yi * display_width) * numbers_per_thread],
+        numbers_per_thread
+    };
+    int random_id = 0;
 
-        Rand rand((xi + display_width * yi) * 100);
+    if (xi < display_width && yi < display_height) {
 
         vec3 color{0,0,0};
         for (int i = 0; i < RAY_COUNT; i++) {
 
-            float x = ((float)xi + rand.Float()) / display_width - 0.5;
-            float y = ((float)yi + rand.Float()) / display_height - 0.5;
+            float x = ((float)xi + RandomFloat(random, random_id)) / display_width - 0.5;
+            float y = ((float)yi + RandomFloat(random, random_id)) / display_height - 0.5;
             float aspect = (float) display_width / display_height;
             x *= aspect;
 
-            color += Render(spheres.get(), spheres_count, {0,0,0}, {x, y, -1}, 0, rand);
+            color += Render(spheres.get(), spheres_count, {0,0,0}, {x, y, -1}, 0, random, random_id);
         }
         pixel = color / (float)RAY_COUNT;
 

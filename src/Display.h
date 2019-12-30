@@ -14,12 +14,12 @@ class Display {
 public:
     Display(int, int);
 
-    cuda_device_ptr<glm::vec3> GetDisplay();
+    CUDA::device_ptr<glm::vec3> GetDisplay();
 
     friend std::ostream& operator<<(std::ostream&, Display& display);
 
 private:
-    cuda_unique_ptr<glm::vec3> display_;
+    CUDA::unique_ptr<glm::vec3> display_;
     int width_;
     int height_;
 };

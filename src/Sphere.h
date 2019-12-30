@@ -10,6 +10,8 @@
 struct Sphere {
     float radius;
     glm::vec3 position;
+    glm::vec3 color;
+    bool light = 0;
 };
 
 #endif //RAYTRACING_SPHERE_H

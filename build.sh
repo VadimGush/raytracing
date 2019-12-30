@@ -1,9 +1,7 @@
 #!/bin/bash
 
-rm image.ppm
-
 echo " >>> Compiling... "
-nvcc src/Kernel.cu src/Display.cpp src/RayTracer.cu &&
+nvcc src/Kernel.cu src/Display.cpp src/RayTracer.cu -lcurand &&
 
 echo " >>> Running program... " &&
 ./a.out
