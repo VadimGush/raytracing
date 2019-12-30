@@ -1,5 +1,5 @@
 //
-// Created by tsukuto on 29.12.19.
+// Created by Vadim Gush on 29.12.19.
 //
 
 #ifndef RAYTRACING_CUDAPOINTER_H
@@ -52,7 +52,9 @@ namespace CUDA {
 
         unique_ptr &operator=(unique_ptr &&ptr) noexcept {
             device_pointer_ = ptr.device_pointer_;
+            size_ = ptr.size_;
             ptr.device_pointer_ = nullptr;
+            ptr.size_ = 0;
             return *this;
         }
 

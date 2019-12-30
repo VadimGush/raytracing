@@ -42,12 +42,13 @@ int main() {
 
         // SPHERES
         vector<Sphere> spheres = {
-                Sphere{ 0.3,   { 0,     0, -1}      ,{1,0,0}},
-                Sphere{ 10,    { 0, -10.30, -1}     ,{1,1,1}},
-                Sphere{ 0.2,   { 0.6, 0, -1.1}      ,{1,1,0}},
-                Sphere{ 0.06,  { 0.35,-0.2, -1.1} ,{1,1,1}, 1},
-                Sphere{ 0.02,  { 0.35,-0.25, -0.8} ,{1,0,1}, 1},
-                Sphere{ 0.1,   { 0.5, -0.3, -0.9}   ,{1,1,1}}
+                Sphere{ 0.3,   { 0,     0, -1}      , Material::Scatter({1,1,1})}, // big red sphere
+                Sphere{ 10,    { 0, -10.30, -1}     , Material::Scatter({0.8,1,0.8})}, // floor
+                Sphere{ 0.2,   { 0.6, 0, -1.1}      , Material::Metal({1,1,0}, 0.5)},
+                Sphere{ 0.06,  { 0.35,-0.2, -1.1}   , Material::Light({1,1,1})},
+                Sphere{ 0.02,  { 0.35,-0.25, -0.8}  , Material::Light({1,0,1})},
+                Sphere{ 0.04,  { 0.15,-0.25, -0.8}  , Material::Light({0,1,1})},
+                Sphere{ 0.1,   { 0.5, -0.3, -0.9}   , Material::Metal({1,1,1}, 0.1)},
         };
         for (auto& sphere : spheres) {
             sphere.position.x -= 0.25;

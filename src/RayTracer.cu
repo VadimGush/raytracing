@@ -28,6 +28,10 @@ __device__ float RandomFloat(const LocalRandom& random, int& random_id) {
     return random.random_numbers[random_id];
 }
 
+__device__ vec3 reflect(const vec3 vector, const vec3 normal) {
+    return vector - 2 * dot(vector, normal) * normal;
+}
+
 __device__ Hit HitSphere(const vec3& center, const float radius, const vec3& origin, const vec3& direction) {
     vec3 oc = origin - center;
     float a = dot(direction, direction);
@@ -67,22 +71,42 @@ __device__ vec3 Render(Sphere* spheres, const int spheres_count, const vec3& cam
         }
     }
 
+    const Material& material = current_sphere.material;
+
     if (hit.distance > 0.0001) {
 
         vec3 point = camera_origin + camera_direction * hit.distance;
 
         iter++;
         if (iter < 6) {
-            if (!current_sphere.light) {
-                return 0.5f * current_sphere.color * Render(spheres, spheres_count, point, normalize(hit.normal + RandomVector(local_random, random_id)), iter, local_random, random_id);
-            } else {
-                return current_sphere.color;
+            if (material.light) {
+                return material.color;
             }
+
+            vec3 direction;
+            if (material.metal) {
+                direction = reflect(camera_direction, hit.normal);
+                direction += RandomVector(local_random, random_id) * material.reflect;
+            } else {
+                direction = hit.normal + RandomVector(local_random, random_id);
+            }
+
+            return 0.5f * material.color * Render(spheres, spheres_count, point, normalize(direction), iter, local_random, random_id);
+
+            /*
+            if (!material.light) {
+                vec3 direction = reflect(camera_direction, hit.normal);
+                direction += RandomVector(local_random, random_id) * 0.5f;
+                return 0.5f * material.color * Render(spheres, spheres_count, point, direction, iter, local_random, random_id);
+            } else {
+                return material.color;
+            }
+             */
         } else {
             return {0,0,0};
         }
     } else {
-        return {0.1,0.1,0.1};
+        return {0,0,0};
     }
 }
 
