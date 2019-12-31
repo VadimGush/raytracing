@@ -47,8 +47,10 @@ int main() {
                 Sphere{ 0.2,   { 0.6, 0, -1.1}      , Material::Metal({1,1,0}, 0.5)},
                 Sphere{ 0.06,  { 0.35,-0.2, -1.1}   , Material::Light({1,1,1})},
                 Sphere{ 0.02,  { 0.35,-0.25, -0.8}  , Material::Light({1,0,1})},
+                Sphere{ 0.05,  { 0.25,-0.25, -0.9}  , Material::Metal({1,1,1}, 0)},
                 Sphere{ 0.04,  { 0.15,-0.25, -0.8}  , Material::Light({0,1,1})},
                 Sphere{ 0.1,   { 0.5, -0.3, -0.9}   , Material::Metal({1,1,1}, 0.1)},
+                Sphere{ 0.08,  { 0.3, -0.17, -0.7}  , Material::Air()}
         };
         for (auto& sphere : spheres) {
             sphere.position.x -= 0.25;

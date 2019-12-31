@@ -8,13 +8,18 @@
 #include <cstdlib>
 
 #define RAY_COUNT 50
+#define BACKGROUND vec3{0.01,0.01,0.01}
+#define LAST_RAY_COLOR vec3{0,0,0}
 
 using namespace glm;
 
 struct Hit {
     float distance;
-    vec3 color;
     vec3 normal;
+
+    __device__ inline bool WasHit() const {
+        return distance > 0.000001;
+    }
 };
 
 struct LocalRandom {
@@ -22,13 +27,13 @@ struct LocalRandom {
     const int max;
 };
 
-__device__ float RandomFloat(const LocalRandom& random, int& random_id) {
+__device__ inline float RandomFloat(const LocalRandom& random, int& random_id) {
     random_id++;
     if (random_id >= random.max) random_id = 0;
     return random.random_numbers[random_id];
 }
 
-__device__ vec3 reflect(const vec3 vector, const vec3 normal) {
+__device__ inline vec3 reflect(const vec3 vector, const vec3 normal) {
     return vector - 2 * dot(vector, normal) * normal;
 }
 
@@ -39,17 +44,17 @@ __device__ Hit HitSphere(const vec3& center, const float radius, const vec3& ori
     float c = dot(oc, oc) - radius * radius;
     float d = b * b - 4 * a * c;
     if (d < 0) {
-        return {-1, {}, {}};
+        return {-1};
     } else {
         float t = (-b - sqrt(d)) / (2*a);
         vec3 hit_position = origin + direction * t;
         vec3 sphere_normal = hit_position - center;
 
-        return {t, {1,radius,1}, normalize(sphere_normal)};
+        return {t, normalize(sphere_normal)};
     }
 }
 
-__device__ vec3 RandomVector(const LocalRandom random, int& random_id) {
+__device__ inline vec3 RandomVector(const LocalRandom random, int& random_id) {
     return {
         RandomFloat(random, random_id) * 2 - 1,
         RandomFloat(random, random_id) * 2 - 1,
@@ -57,56 +62,61 @@ __device__ vec3 RandomVector(const LocalRandom random, int& random_id) {
     };
 }
 
-__device__ vec3 Render(Sphere* spheres, const int spheres_count, const vec3& camera_origin, const vec3& camera_direction, int iter, const LocalRandom local_random, int& random_id) {
+__device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_origin, vec3 camera_direction, int iter, const LocalRandom local_random, int& random_id) {
 
-    Hit hit{-1, {0,0,0}, {0,0,0}};
-    Sphere current_sphere;
-    for (int i = 0; i < spheres_count; i++) {
-        Sphere& sphere = spheres[i];
-        Hit current = HitSphere(sphere.position, sphere.radius, camera_origin, camera_direction);
+    bool is_background = true;
+    vec3 current_color = vec3{1,1,1};
+    float k = 2;
 
-        if (hit.distance <= 0 || (hit.distance > current.distance && current.distance > 0)) {
-            current_sphere = sphere;
-            hit = current;
+    for (int ray_id = 0; ray_id < 10; ray_id++) {
+        // register hit
+        Hit hit{-1};
+        Sphere current_sphere;
+        for (int i = 0; i < spheres.size(); i++) {
+            const Sphere& sphere = spheres.get()[i];
+            Hit current = HitSphere(sphere.position, sphere.radius, camera_origin, camera_direction);
+            if (hit.distance <= 0 || (hit.distance > current.distance && current.distance > 0)) {
+                current_sphere = sphere;
+                hit = current;
+            }
+        }
+
+        const Material& material = current_sphere.material;
+        k /= 2;
+        if (hit.WasHit()) {
+            // hit is now
+            is_background = false;
+            current_color *= material.color;
+
+            if (material.light)
+                break;
+
+            // if metal
+            if (material.metal) {
+                camera_origin = camera_origin + camera_direction * hit.distance;
+                camera_direction = reflect(camera_direction, hit.normal);
+                camera_direction += RandomVector(local_random, random_id) * material.reflect;
+                continue;
+            }
+
+            // if scatter
+            camera_origin = camera_origin + camera_direction * hit.distance;
+            camera_direction = normalize(hit.normal + RandomVector(local_random, random_id));
+
+        } else if (!is_background) {
+            // there was hit before but now we didn't hit anything
+            current_color *= BACKGROUND;
+            break;
+        } else {
+            // hit never occur
+            break;
         }
     }
 
-    const Material& material = current_sphere.material;
-
-    if (hit.distance > 0.0001) {
-
-        vec3 point = camera_origin + camera_direction * hit.distance;
-
-        iter++;
-        if (iter < 6) {
-            if (material.light) {
-                return material.color;
-            }
-
-            vec3 direction;
-            if (material.metal) {
-                direction = reflect(camera_direction, hit.normal);
-                direction += RandomVector(local_random, random_id) * material.reflect;
-            } else {
-                direction = hit.normal + RandomVector(local_random, random_id);
-            }
-
-            return 0.5f * material.color * Render(spheres, spheres_count, point, normalize(direction), iter, local_random, random_id);
-
-            /*
-            if (!material.light) {
-                vec3 direction = reflect(camera_direction, hit.normal);
-                direction += RandomVector(local_random, random_id) * 0.5f;
-                return 0.5f * material.color * Render(spheres, spheres_count, point, direction, iter, local_random, random_id);
-            } else {
-                return material.color;
-            }
-             */
-        } else {
-            return {0,0,0};
-        }
+    if (is_background) {
+        return BACKGROUND;
     } else {
-        return {0,0,0};
+        return k * current_color;
     }
 }
 
@@ -141,12 +151,11 @@ __global__ void RayTracer::RenderScreen(
             float aspect = (float) display_width / display_height;
             x *= aspect;
 
-            color += Render(spheres.get(), spheres_count, {0,0,0}, {x, y, -1}, 0, random, random_id);
+            color += Render(spheres, {0,0,0}, {x, y, -1}, 0, random, random_id);
         }
         pixel = color / (float)RAY_COUNT;
 
-        // debug
+        // renders CUDA blocks grid on screen
         // if (threadIdx.x == 0 || threadIdx.y == 0) pixel.b += 0.5;
-        // if (x == 0 || y == 0) pixel.r += 0.5;
     }
 }
