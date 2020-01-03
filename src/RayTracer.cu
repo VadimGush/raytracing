@@ -8,10 +8,10 @@
 #include <cstdlib>
 #include "Camera.h"
 
-#define RAY_COUNT 50
-#define BACKGROUND vec3{0.8,0.9,1}
+#define RAY_COUNT 200
+#define BACKGROUND vec3{0,0,0}
 #define LAST_RAY_COLOR vec3{0,0,0}
-#define PI 3.14159265359f;
+#define PI 3.14159265359f
 
 using namespace glm;
 
@@ -27,7 +27,7 @@ struct LocalRandom {
 };
 
 __device__ inline float RandomFloat(const LocalRandom& random, int& random_id) {
-    random_id+=10;
+    random_id++;
     if (random_id >= random.max) random_id = 0;
     return random.random_numbers[random_id];
 }
@@ -151,9 +151,12 @@ __global__ void RayTracer::RenderScreen(
     int yi = threadIdx.y + blockDim.y * blockIdx.y;
     vec3& pixel = display[xi + yi * display_width];
 
+    float random_start_f = random_numbers.get()[xi + yi * display_width];
+    int random_start_id = round(random_start_f * (float)random_numbers.size());
+
     LocalRandom random{
-        &random_numbers.get()[(xi + yi * display_width) * numbers_per_thread],
-        numbers_per_thread
+        &random_numbers.get()[random_start_id],
+        random_numbers.size() - random_start_id
     };
     int random_id = 0;
 

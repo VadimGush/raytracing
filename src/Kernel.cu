@@ -14,7 +14,7 @@ using namespace glm;
 
 constexpr int display_width = 1920;
 constexpr int display_height = 1080;
-constexpr int numbers_per_thread = 100;
+constexpr int numbers_per_thread = 2;
 
 ostream& operator<<(ostream& output, const vec3& vector) {
     return output << vector.x << " " << vector.y << " " << vector.z;
