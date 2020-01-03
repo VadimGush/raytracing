@@ -14,7 +14,7 @@ using namespace glm;
 
 constexpr int display_width = 1920;
 constexpr int display_height = 1080;
-constexpr int numbers_per_thread = 200;
+constexpr int numbers_per_thread = 100;
 
 ostream& operator<<(ostream& output, const vec3& vector) {
     return output << vector.x << " " << vector.y << " " << vector.z;
@@ -34,6 +34,7 @@ CUDA::unique_ptr<float> generateRandomNumbers(const size_t size) {
 
 int main() {
 
+
     try {
         Display display{display_width, display_height};
 
@@ -43,14 +44,14 @@ int main() {
         // SPHERES
         vector<Sphere> spheres = {
                 Sphere{ 0.3,   { 0,     0, -1}      , Material::Scatter({1,1,1})}, // big red sphere
-                Sphere{ 10,    { 0, -10.30, -1}     , Material::Scatter({0.8,1,0.8})}, // floor
-                Sphere{ 0.2,   { 0.6, 0, -1.1}      , Material::Metal({1,1,0}, 0.5)},
-                Sphere{ 0.06,  { 0.35,-0.2, -1.1}   , Material::Light({1,1,1})},
+                Sphere{ 10,    { 0, -10.30, -1}     , Material::Scatter({0.1,1,0.1})}, // floor
+                Sphere{ 0.2,   { 0.6, 0, -1.1}      , Material::Metal({1,1,1}, 1)},
+                // Sphere{ 0.06,  { 0.35,-0.2, -1.1}   , Material::Light({1,1,1})},
                 Sphere{ 0.02,  { 0.35,-0.25, -0.8}  , Material::Light({1,0,1})},
-                Sphere{ 0.05,  { 0.25,-0.25, -0.9}  , Material::Metal({1,1,1}, 0)},
+                Sphere{ 0.05,  { 0.25,-0.25, -0.9}  , Material::Metal({1,1,1}, 1)},
                 Sphere{ 0.04,  { 0.15,-0.25, -0.8}  , Material::Light({0,1,1})},
-                Sphere{ 0.1,   { 0.5, -0.3, -0.9}   , Material::Metal({1,1,1}, 0.1)},
-                // Sphere{ 0.08,  { 0.3, -0.17, -0.7}  , Material::Air()}
+                Sphere{ 0.1,   { 0.5, -0.3, -0.9}   , Material::Metal({1,1,1}, 0.9)},
+                Sphere{ 0.04,  { 0.3, -0.2, -0.7}  , Material::Dielectric(1)},
         };
         for (auto& sphere : spheres) {
             sphere.position.x -= 0.25;
