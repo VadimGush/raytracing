@@ -6,9 +6,10 @@
 
 #include <glm/geometric.hpp>
 #include <cstdlib>
+#include "Camera.h"
 
 #define RAY_COUNT 50
-#define BACKGROUND vec3{0.8,0.8,1}
+#define BACKGROUND vec3{0.8,0.9,1}
 #define LAST_RAY_COLOR vec3{0,0,0}
 #define PI 3.14159265359f;
 
@@ -18,10 +19,6 @@ struct Hit {
     float distance;
     vec3 normal;
     vec3 position;
-
-    __device__ inline bool WasHit() const {
-        return distance > 0.000001;
-    }
 };
 
 struct LocalRandom {
@@ -35,19 +32,23 @@ __device__ inline float RandomFloat(const LocalRandom& random, int& random_id) {
     return random.random_numbers[random_id];
 }
 
-__device__ Hit HitSphere(const vec3& center, const float radius, const vec3& origin, const vec3& direction) {
-    vec3 oc = origin - center;
-    float a = dot(direction, direction);
-    float b = dot(oc, direction);
-    float c = dot(oc, oc) - radius * radius;
-    float d = b * b - a * c;
+__device__ Hit HitSphere(const Sphere& sphere, const Camera& camera) {
+    vec3 oc = camera.origin - sphere.position;
+
+    float a = dot(camera.direction, camera.direction);
+    float b = 2 * dot(oc, camera.direction);
+    float c = dot(oc, oc) - sphere.radius * sphere.radius;
+
+    float d = b * b - 4 * a * c;
+
     if (d > 0) {
+        float x1 = (-b - sqrt(d)) / (2 * a);
+        float x2 = (-b + sqrt(d)) / (2 * a);
 
-        float t = (-b - sqrt(d)) / a;
+        float mt = min(x1, x2);
 
-        vec3 hit_position = origin + direction * t;
-        vec3 sphere_normal = (hit_position - center) / radius;
-        return {t, sphere_normal, hit_position};
+        vec3 hit_position = camera.origin + camera.direction * mt;
+        return {mt, (hit_position - sphere.position) / sphere.radius, hit_position};
     }
     return {-1};
 }
@@ -59,7 +60,7 @@ __device__ inline vec3 RandomVector(const LocalRandom random, int& random_id) {
     return {temp * cos(theta), temp * sin(theta), z};
 }
 
-__device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_origin, vec3 camera_direction, int iter, const LocalRandom local_random, int& random_id) {
+__device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, Camera camera, int iter, const LocalRandom local_random, int& random_id) {
 
     bool is_background = true;
     vec3 current_color = vec3{1,1,1};
@@ -67,32 +68,30 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_orig
 
     const int rays = 10;
     for (int ray_id = 0; ray_id < rays; ray_id++) {
+
         // register hit
         Hit hit{-1};
         Sphere current_sphere;
         for (int i = 0; i < spheres.size(); i++) {
             const Sphere& sphere = spheres.get()[i];
-            Hit current = HitSphere(sphere.position, sphere.radius, camera_origin, camera_direction);
-            if (hit.distance <= 0 || (hit.distance > current.distance && current.distance > 0)) {
+            Hit current = HitSphere(sphere, camera);
+            if (current.distance < 0.0001f) continue;
+            if (current.distance < hit.distance || hit.distance == -1) {
                 current_sphere = sphere;
                 hit = current;
             }
         }
 
-
         const Material& material = current_sphere.material;
-        if (hit.WasHit()) {
+        if (hit.distance > 0) {
 
-            // hit is now
             is_background = false;
-
-            // camera origin always the same
-            // camera_origin = camera_origin + camera_direction * hit.distance;
+            camera.origin = hit.position;
 
             if (material.diel) {
                 vec3 outward_normal;
                 float ni_over_nt;
-                if (dot(camera_direction, hit.normal) > 0) {
+                if (dot(camera.direction, hit.normal) > 0) {
                     outward_normal = -hit.normal;
                     ni_over_nt = material.refractive;
                 } else {
@@ -100,13 +99,9 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_orig
                     ni_over_nt = 1.0f / material.refractive;
                 }
 
-                // camera_direction = Refract(camera_direction, outward_normal, ni_over_nt, hit.normal);
-                camera_origin = hit.position;
-                camera_direction = refract(camera_direction, outward_normal, ni_over_nt);
+                camera.direction = refract(camera.direction, outward_normal, ni_over_nt);
                 continue;
             }
-
-            camera_origin = hit.position;
 
             // This only for metal and scatter materials
             k /= 2;
@@ -116,14 +111,14 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_orig
                 break;
 
             if (material.metal) {
-                camera_direction = reflect(camera_direction, hit.normal);
-                camera_direction += RandomVector(local_random, random_id) * (1.0f - material.reflect);
-                camera_direction = normalize(camera_direction);
+                camera.direction = reflect(camera.direction, hit.normal);
+                camera.direction += RandomVector(local_random, random_id) * (1.0f - material.reflect);
+                camera.direction = normalize(camera.direction);
                 continue;
             }
 
             // if scatter
-            camera_direction = normalize(hit.normal + RandomVector(local_random, random_id));
+            camera.direction = normalize(hit.normal + RandomVector(local_random, random_id));
         } else if (!is_background) {
             k /= 2;
             // there was hit before but now we didn't hit anything
@@ -145,7 +140,6 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_orig
 
 __global__ void RayTracer::RenderScreen(
         CUDA::device_ptr<Sphere> spheres,
-        const int spheres_count,
         CUDA::device_ptr<float> random_numbers,
         const int numbers_per_thread,
         CUDA::device_ptr<vec3> display_ptr,
@@ -170,16 +164,11 @@ __global__ void RayTracer::RenderScreen(
 
             float x = ((float)xi + RandomFloat(random, random_id)) / display_width - 0.5;
             float y = ((float)yi + RandomFloat(random, random_id)) / display_height - 0.5;
-            // float x = (float)xi / display_width - 0.5;
-            // float y = (float)yi / display_height - 0.5;
             float aspect = (float) display_width / display_height;
             x *= aspect;
 
-            color += Render(spheres, {0,0,0}, vec3{x, y, -1}, 0, random, random_id);
+            color += Render(spheres, Camera{{0,0,0},{x, y, -1}}, 0, random, random_id);
         }
         pixel = color / (float)RAY_COUNT;
-
-        // renders CUDA blocks grid on screen
-        // if (threadIdx.x == 0 || threadIdx.y == 0) pixel.b += 0.5;
     }
 }

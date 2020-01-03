@@ -77,7 +77,7 @@ namespace CUDA {
             return std::move(result);
         }
 
-        device_ptr<T> get_device_pointer() {
+        device_ptr<T> get_device_pointer() const {
             return device_ptr<T>(device_pointer_, size_);
         }
 
