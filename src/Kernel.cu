@@ -14,17 +14,17 @@ using namespace glm;
 
 constexpr int display_width = 1920;
 constexpr int display_height = 1080;
-constexpr int numbers_per_thread = 300;
+constexpr int numbers_per_thread = 200;
 
 ostream& operator<<(ostream& output, const vec3& vector) {
     return output << vector.x << " " << vector.y << " " << vector.z;
 }
 
-CUDA::unique_ptr<float> generateRandomNumbers() {
+CUDA::unique_ptr<float> generateRandomNumbers(const size_t size) {
     curandGenerator_t generator;
     curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_DEFAULT);
     curandSetPseudoRandomGeneratorSeed(generator, 123);
-    CUDA::unique_ptr<float> device_random_numbers(display_width * display_height * numbers_per_thread);
+    CUDA::unique_ptr<float> device_random_numbers(size);
     curandGenerateUniform(
             generator,
             device_random_numbers.get_device_pointer().get(),
@@ -50,16 +50,18 @@ int main() {
                 Sphere{ 0.05,  { 0.25,-0.25, -0.9}  , Material::Metal({1,1,1}, 0)},
                 Sphere{ 0.04,  { 0.15,-0.25, -0.8}  , Material::Light({0,1,1})},
                 Sphere{ 0.1,   { 0.5, -0.3, -0.9}   , Material::Metal({1,1,1}, 0.1)},
-                Sphere{ 0.08,  { 0.3, -0.17, -0.7}  , Material::Air()}
+                // Sphere{ 0.08,  { 0.3, -0.17, -0.7}  , Material::Air()}
         };
         for (auto& sphere : spheres) {
             sphere.position.x -= 0.25;
+            sphere.position.y += 0.05;
+            sphere.position.z += 0.15;
         }
         CUDA::unique_ptr<Sphere> device_spheres(spheres.size());
         device_spheres.copy_from(spheres.data());
 
         // RANDOM GENERATOR
-        CUDA::unique_ptr<float> device_random_numbers = generateRandomNumbers();
+        CUDA::unique_ptr<float> device_random_numbers = generateRandomNumbers(display_width * display_height * numbers_per_thread);
 
         // RENDER
         RayTracer::RenderScreen<<<blocks, threads>>>(

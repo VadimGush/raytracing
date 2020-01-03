@@ -10,6 +10,7 @@
 #define RAY_COUNT 50
 #define BACKGROUND vec3{0.01,0.01,0.01}
 #define LAST_RAY_COLOR vec3{0,0,0}
+#define PI 3.14159265359f;
 
 using namespace glm;
 
@@ -55,11 +56,10 @@ __device__ Hit HitSphere(const vec3& center, const float radius, const vec3& ori
 }
 
 __device__ inline vec3 RandomVector(const LocalRandom random, int& random_id) {
-    return {
-        RandomFloat(random, random_id) * 2 - 1,
-        RandomFloat(random, random_id) * 2 - 1,
-        RandomFloat(random, random_id) * 2 - 1
-    };
+    float theta = RandomFloat(random, random_id) * 2 * PI;
+    float z = RandomFloat(random, random_id) * 2 - 1;
+    float temp = sqrt(1 - z * z);
+    return {temp * cos(theta), temp * sin(theta), z};
 }
 
 __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_origin, vec3 camera_direction, int iter, const LocalRandom local_random, int& random_id) {
@@ -82,8 +82,9 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_orig
         }
 
         const Material& material = current_sphere.material;
-        k /= 2;
         if (hit.WasHit()) {
+            k /= 2;
+
             // hit is now
             is_background = false;
             current_color *= material.color;
@@ -96,14 +97,15 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, vec3 camera_orig
                 camera_origin = camera_origin + camera_direction * hit.distance;
                 camera_direction = reflect(camera_direction, hit.normal);
                 camera_direction += RandomVector(local_random, random_id) * material.reflect;
+                camera_direction = normalize(camera_direction);
                 continue;
             }
 
             // if scatter
             camera_origin = camera_origin + camera_direction * hit.distance;
             camera_direction = normalize(hit.normal + RandomVector(local_random, random_id));
-
         } else if (!is_background) {
+            k /= 2;
             // there was hit before but now we didn't hit anything
             current_color *= BACKGROUND;
             break;

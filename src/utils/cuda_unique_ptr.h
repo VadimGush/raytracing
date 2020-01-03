@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cuda_runtime_api.h>
 #include <exception>
+#include <vector>
 
 namespace CUDA {
 
@@ -64,10 +65,16 @@ namespace CUDA {
                 throw std::runtime_error("Failed to copy memory from host to device.");
         }
 
-        void copy_to(T *pointer) {
+        void copy_to(T *pointer) const {
             auto status = cudaMemcpy(pointer, device_pointer_, sizeof(T) * size_, cudaMemcpyDeviceToHost);
             if (status)
                 throw std::runtime_error("Failed to copy memory from device to host.");
+        }
+
+        std::vector<T> copy_to_vector() const {
+            std::vector<T> result(size_);
+            copy_to(result.data());
+            return std::move(result);
         }
 
         device_ptr<T> get_device_pointer() {
