@@ -8,8 +8,8 @@
 #include <cstdlib>
 #include "Camera.h"
 
-#define RAY_COUNT 200
-#define BACKGROUND vec3{0,0,0}
+#define RAY_COUNT 100
+#define BACKGROUND vec3{0.8,0.8,1}
 #define LAST_RAY_COLOR vec3{0,0,0}
 #define PI 3.14159265359f
 
@@ -60,6 +60,12 @@ __device__ inline vec3 RandomVector(const LocalRandom random, int& random_id) {
     return {temp * cos(theta), temp * sin(theta), z};
 }
 
+__device__ float lick(float cosine, float refraction) {
+    float r0 = (1 - refraction) / (1 + refraction);
+    r0 = r0 * r0;
+    return r0 + (1 - r0) * pow((1 - cosine), 5);
+}
+
 __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, Camera camera, int iter, const LocalRandom local_random, int& random_id) {
 
     bool is_background = true;
@@ -91,15 +97,32 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, Camera camera, i
             if (material.diel) {
                 vec3 outward_normal;
                 float ni_over_nt;
+
+                float reflect_prob;
+                float cosine;
+
                 if (dot(camera.direction, hit.normal) > 0) {
                     outward_normal = -hit.normal;
                     ni_over_nt = material.refractive;
+                    cosine = material.refractive * dot(camera.direction, hit.normal) / length(camera.direction);
                 } else {
                     outward_normal = hit.normal;
                     ni_over_nt = 1.0f / material.refractive;
+                    cosine = -dot(camera.direction, hit.normal) / length(camera.direction);
                 }
 
-                camera.direction = refract(camera.direction, outward_normal, ni_over_nt);
+                // maybe refracted (who knows)
+                vec3 refracted = refract(camera.direction, outward_normal, ni_over_nt);
+                // always reflected
+                vec3 reflected = reflect(camera.direction, hit.normal);
+
+                reflect_prob = lick(cosine, material.refractive);
+                if (RandomFloat(local_random, random_id) < reflect_prob) {
+                    camera.direction = reflected;
+                } else {
+                    camera.direction = refracted;
+                }
+
                 continue;
             }
 
