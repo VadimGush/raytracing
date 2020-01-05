@@ -7,7 +7,6 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include <exception>
 
 using namespace glm;
 using namespace std;
@@ -30,10 +29,7 @@ inline void Filter(vec3& v) {
 }
 
 ostream& operator<<(ostream& output, Display& d) {
-    vector<vec3> result;
-    result.reserve(d.width_ * d.height_);
-
-    d.display_.copy_to(result.data());
+    vector<vec3> result = d.display_.copy_to_vector();
 
     output << "P3" << "\n" << d.width_ << " " << d.height_ << "\n" << 255 << "\n";
 

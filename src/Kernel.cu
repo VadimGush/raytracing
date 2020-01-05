@@ -1,12 +1,13 @@
 #include <iostream>
 #include <exception>
-#include "utils/cuda_unique_ptr.h"
 #include <fstream>
 #include <vector>
 #include <glm/vec3.hpp>
 #include <curand.h>
+#include "utils/cuda_utils.h"
+#include "utils/logger.h"
 #include "Display.h"
-#include "RayTracer.cuh"
+#include "RayTracer.h"
 #include "Sphere.h"
 
 using namespace std;
@@ -34,17 +35,16 @@ CUDA::unique_ptr<float> generateRandomNumbers(const size_t size) {
 
 int main() {
 
-
     try {
         Display display{display_width, display_height};
 
-        dim3 threads(16, 16);
-        dim3 blocks(display_width / threads.x + 1, display_height / threads.y + 1);
+        dim3 threads(128, 1);
+        dim3 blocks(display_width / threads.x + 1, display_height / threads.y);
 
         // SPHERES
         vector<Sphere> spheres = {
                 Sphere{ 0.3,   { 0,     0, -1}      , Material::Scatter({1,1,1})}, // big red sphere
-                Sphere{ 10,    { 0, -10.30, -1}     , Material::Scatter({0.1,1,0.1})}, // floor
+                Sphere{ 20,    { 0, -20.30, -1}     , Material::Scatter({0.1,1,0.1})}, // floor
                 Sphere{ 0.2,   { 0.6, 0, -1.1}      , Material::Metal({1,1,0}, 0.1)},
                 Sphere{ 0.06,  { 0.35,-0.2, -1.1}   , Material::Light({1,1,1})},
                 Sphere{ 0.02,  { 0.35,-0.25, -0.8}  , Material::Light({1,0,1})},
@@ -68,18 +68,21 @@ int main() {
         RayTracer::RenderScreen<<<blocks, threads>>>(
                 device_spheres.get_device_pointer(),
                 device_random_numbers.get_device_pointer(),
-                numbers_per_thread,
                 display.GetDisplay(), display_width, display_height
         );
 
+        Logger::info() << "Writing result to: " << "image.ppm" << endl;
         ofstream image{"image.ppm", ios::out};
         if (!image) {
-            cout << "Creating image file failed" << endl;
+            Logger::error() << "Creating image file failed" << endl;
             return -1;
         }
         image << display;
+        image.close();
+
+        Logger::info() << "Done!" << endl;
     } catch (const exception& e) {
-        cout << "ERROR: " << e.what() << endl;
+        Logger::fatal() << e.what() << endl;
     }
 
     return 0;

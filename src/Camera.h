@@ -1,5 +1,5 @@
 //
-// Created by tsukuto on 03.01.20.
+// Created by Vadim Gush on 03.01.20.
 //
 
 #ifndef RAYTRACING_CAMERA_H

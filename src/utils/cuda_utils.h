@@ -5,10 +5,10 @@
 #ifndef RAYTRACING_CUDAPOINTER_H
 #define RAYTRACING_CUDAPOINTER_H
 
-#include <iostream>
 #include <cuda_runtime_api.h>
 #include <exception>
 #include <vector>
+#include "logger.h"
 
 namespace CUDA {
 
@@ -84,7 +84,7 @@ namespace CUDA {
         ~unique_ptr() {
             auto status = cudaFree(device_pointer_);
             if (status != cudaSuccess)
-                std::cout << "ERROR: Failed to free memory on CUDA device." << std::endl;
+                Logger::error() << "Failed to free memory on CUDA device." << std::endl;
         }
 
     private:

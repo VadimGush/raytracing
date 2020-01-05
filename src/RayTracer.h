@@ -6,15 +6,15 @@
 #define RAYTRACING_RAYTRACER_H
 
 #include <glm/vec3.hpp>
-#include "utils/cuda_unique_ptr.h"
+#include "utils/cuda_utils.h"
 #include "Sphere.h"
 
 namespace RayTracer {
 
     __global__ void RenderScreen(
             CUDA::device_ptr<Sphere>,
-            CUDA::device_ptr<float>, const int numbers_per_thread,
-            CUDA::device_ptr<glm::vec3>, const int display_width, const int display_height
+            CUDA::device_ptr<float>,
+            CUDA::device_ptr<glm::vec3>, int display_width, int display_height
     );
 
 };
