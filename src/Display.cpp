@@ -4,9 +4,7 @@
 
 #include "Display.h"
 
-#include <iostream>
 #include <vector>
-#include <cmath>
 
 using namespace glm;
 using namespace std;
@@ -17,31 +15,7 @@ CUDA::device_ptr<vec3> Display::GetDisplay() {
     return display_.get_device_pointer();
 }
 
-inline void Clamp(float& value) {
-    if (value < 0) value = 0;
-    if (value > 1) value = 1;
+vector<vec3> Display::GetImage() const {
+    return move(display_.copy_to_vector());
 }
 
-inline void Filter(vec3& v) {
-    Clamp(v.x);
-    Clamp(v.y);
-    Clamp(v.z);
-}
-
-ostream& operator<<(ostream& output, Display& d) {
-    vector<vec3> result = d.display_.copy_to_vector();
-
-    output << "P3" << "\n" << d.width_ << " " << d.height_ << "\n" << 255 << "\n";
-
-    int index = 0;
-    for (int y = d.height_ - 1; y >= 0; y--) {
-        for (int x = 0; x < d.width_; x++) {
-            index = d.width_ * y + x;
-            vec3& pixel = result[index];
-            Filter(pixel);
-            pixel = {sqrt(pixel.r), sqrt(pixel.g), sqrt(pixel.b)};
-            output << (int)(pixel.r * 255.9) << " " << (int)(pixel.g * 255.9) << " " << (int)(pixel.b * 255.9) << "\n";
-        }
-    }
-    return output;
-}

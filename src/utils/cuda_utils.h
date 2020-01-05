@@ -16,7 +16,8 @@ namespace CUDA {
     class device_ptr {
     public:
 
-        explicit device_ptr(T* pointer, const size_t size) : device_pointer_(pointer), size_(size) {}
+        explicit device_ptr(T* pointer, const size_t size)
+            : device_pointer_(pointer), size_(size) { }
 
         __host__ __device__ T* get() const {
             return device_pointer_;

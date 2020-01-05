@@ -6,6 +6,7 @@
 #include <curand.h>
 #include "utils/cuda_utils.h"
 #include "utils/logger.h"
+#include "utils/png.h"
 #include "Display.h"
 #include "RayTracer.h"
 #include "Sphere.h"
@@ -15,13 +16,12 @@ using namespace glm;
 
 constexpr int display_width = 1920;
 constexpr int display_height = 1080;
-constexpr int numbers_per_thread = 2;
 
 ostream& operator<<(ostream& output, const vec3& vector) {
     return output << vector.x << " " << vector.y << " " << vector.z;
 }
 
-CUDA::unique_ptr<float> generateRandomNumbers(const size_t size) {
+CUDA::unique_ptr<float> GenerateRandomNumbers(const size_t size) {
     curandGenerator_t generator;
     curandCreateGenerator(&generator, CURAND_RNG_PSEUDO_DEFAULT);
     curandSetPseudoRandomGeneratorSeed(generator, 123);
@@ -38,8 +38,8 @@ int main() {
     try {
         Display display{display_width, display_height};
 
-        dim3 threads(128, 1);
-        dim3 blocks(display_width / threads.x + 1, display_height / threads.y);
+        dim3 threads(16, 16);
+        dim3 blocks(display_width / threads.x + 1, display_height / threads.y + 1);
 
         // SPHERES
         vector<Sphere> spheres = {
@@ -62,7 +62,9 @@ int main() {
         device_spheres.copy_from(spheres.data());
 
         // RANDOM GENERATOR
-        CUDA::unique_ptr<float> device_random_numbers = generateRandomNumbers(display_width * display_height * numbers_per_thread);
+        CUDA::unique_ptr<float> device_random_numbers = GenerateRandomNumbers(display_width * display_height);
+
+        Logger::info() << "Rendering" << endl;
 
         // RENDER
         RayTracer::RenderScreen<<<blocks, threads>>>(
@@ -70,15 +72,10 @@ int main() {
                 device_random_numbers.get_device_pointer(),
                 display.GetDisplay(), display_width, display_height
         );
+        const auto image = display.GetImage();
 
-        Logger::info() << "Writing result to: " << "image.ppm" << endl;
-        ofstream image{"image.ppm", ios::out};
-        if (!image) {
-            Logger::error() << "Creating image file failed" << endl;
-            return -1;
-        }
-        image << display;
-        image.close();
+        Logger::info() << "Exporting image to PNG" << endl;
+        PNG::WriteImage("output.png", display_width, display_height, image);
 
         Logger::info() << "Done!" << endl;
     } catch (const exception& e) {

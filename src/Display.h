@@ -16,8 +16,7 @@ public:
 
     CUDA::device_ptr<glm::vec3> GetDisplay();
 
-    friend std::ostream& operator<<(std::ostream&, Display& display);
-
+    std::vector<glm::vec3> GetImage() const;
 private:
     CUDA::unique_ptr<glm::vec3> display_;
     int width_;

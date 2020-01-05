@@ -8,7 +8,7 @@
 #include <device_launch_parameters.h>
 #include "Camera.h"
 
-#define RAY_COUNT 10
+#define RAY_COUNT 100
 #define BACKGROUND vec3{0.8,0.8,1}
 #define PI 3.14159265359f
 
@@ -59,7 +59,7 @@ __device__ vec3 RandomVector(const LocalRandom& random, int& random_id) {
     return {temp * cosf(theta), temp * sinf(theta), z};
 }
 
-__device__ float lick(float cosine, float refraction) {
+__device__ float Lick(float cosine, float refraction) {
     float r0 = (1 - refraction) / (1 + refraction);
     r0 = r0 * r0;
     return r0 + (1 - r0) * powf((1 - cosine), 5);
@@ -97,7 +97,7 @@ __device__ void RenderDielectric(Camera& camera, const Hit& hit, const Material&
 
     float reflect_prob = 1;
     if (dot(refracted, hit.normal) < 0) {
-        reflect_prob = lick(cosine, material.refractive);
+        reflect_prob = Lick(cosine, material.refractive);
     }
 
     if (RandomFloat(local_random, random_id) < reflect_prob) {
@@ -107,7 +107,7 @@ __device__ void RenderDielectric(Camera& camera, const Hit& hit, const Material&
     }
 }
 
-__device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, Camera camera, const LocalRandom local_random, int& random_id) {
+__device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, Camera& camera, const LocalRandom& local_random, int& random_id) {
 
     bool is_background = true;
     vec3 current_color = vec3{1,1,1};
@@ -165,6 +165,23 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, Camera camera, c
     }
 }
 
+__device__ LocalRandom CreateRandomGenerator(const CUDA::device_ptr<float>& random_numbers, const int xi, const int yi, const int display_width) {
+    float random_start_f = random_numbers.get()[xi + yi * display_width];
+    int random_start_id = round(random_start_f * (float)random_numbers.size());
+
+    return {
+            &random_numbers.get()[random_start_id],
+            static_cast<int>(random_numbers.size() - random_start_id)
+    };
+}
+
+__device__ Camera CreateCamera(const int xi, const int yi, const LocalRandom& random, int& random_id, const int display_width, const int display_height) {
+    float x = ((float)xi + RandomFloat(random, random_id)) / (float)display_width - 0.5f;
+    float y = ((float)yi + RandomFloat(random, random_id)) / (float)display_height - 0.5f;
+    float aspect = (float)display_width / (float)display_height;
+    x *= aspect;
+    return {{0,0,0}, {x,y, -1}};
+}
 
 __global__ void RayTracer::RenderScreen(
         CUDA::device_ptr<Sphere> spheres,
@@ -176,28 +193,19 @@ __global__ void RayTracer::RenderScreen(
     int xi = threadIdx.x + blockDim.x * blockIdx.x;
     int yi = threadIdx.y + blockDim.y * blockIdx.y;
 
-    float random_start_f = random_numbers.get()[xi + yi * display_width];
-    int random_start_id = round(random_start_f * (float)random_numbers.size());
-
-    LocalRandom random{
-        &random_numbers.get()[random_start_id],
-        static_cast<int>(random_numbers.size() - random_start_id)
-    };
-    int random_id = 0;
-
     if (xi < display_width && yi < display_height) {
+
+        LocalRandom random = CreateRandomGenerator(random_numbers, xi, yi, display_width);
+        int random_id = 0;
 
         vec3 color{0,0,0};
         for (int i = 0; i < RAY_COUNT; i++) {
-
-            float x = ((float)xi + RandomFloat(random, random_id)) / (float)display_width - 0.5f;
-            float y = ((float)yi + RandomFloat(random, random_id)) / (float)display_height - 0.5f;
-            float aspect = (float)display_width / (float)display_height;
-            x *= aspect;
-
-            color += Render(spheres, Camera{{0,0,0},{x, y, -1}}, random, random_id);
+            Camera camera = CreateCamera(xi, yi, random, random_id, display_width, display_height);
+            color += Render(spheres, camera, random, random_id);
         }
+        color = color / (float)RAY_COUNT;
+        color = {sqrtf(color.x), sqrtf(color.y), sqrtf(color.z)};
 
-        display_ptr.get()[xi + yi * display_width] = color / (float)RAY_COUNT;
+        display_ptr.get()[xi + yi * display_width] = color;
     }
 }
