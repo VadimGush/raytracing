@@ -51,12 +51,12 @@ int main() {
                 Sphere{ 0.05,  { 0.25,-0.25, -0.9}  , Material::Metal({1,1,1}, 1)},
                 Sphere{ 0.04,  { 0.15,-0.25, -0.8}  , Material::Light({0,1,1})},
                 Sphere{ 0.1,   { 0.5, -0.3, -0.9}   , Material::Metal({1,1,1}, 0.9)},
-                Sphere{ 0.08,  { 0.3, -0.2, -0.7}   , Material::Dielectric(1.5f)},
+                Sphere{ 0.04,  { 0.3, -0.27, -0.7}   , Material::Dielectric(1.5f)},
         };
         for (auto& sphere : spheres) {
             sphere.position.x -= 0.25;
             sphere.position.y += 0.05;
-            sphere.position.z -= 0.15;
+            sphere.position.z -= 0.1;
         }
         CUDA::unique_ptr<Sphere> device_spheres(spheres.size());
         device_spheres.copy_from(spheres.data());

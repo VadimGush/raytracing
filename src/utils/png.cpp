@@ -4,11 +4,12 @@
 
 #include "png.h"
 
-#include "c_file.h"
+#include "clang/file.h"
 #include <iostream>
 #include <png.h>
 
 using namespace std;
+using namespace C;
 
 void WriteImage(const png_structp& png_ptr, const int width, const int height, const vector<glm::vec3>& image) {
     for (int y = height - 1; y >= 0; --y) {
@@ -28,7 +29,7 @@ void WriteImage(const png_structp& png_ptr, const int width, const int height, c
 
 void PNG::WriteImage(const string& path, const int width, const int height, const vector<glm::vec3>& image) {
 
-    c_file file(path, "wb");
+    file file(path, "wb");
     if (!file.is_open()) {
         throw runtime_error("Cannot create image file");
     }

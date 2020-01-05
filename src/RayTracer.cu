@@ -9,7 +9,7 @@
 #include "Camera.h"
 
 #define RAY_COUNT 100
-#define BACKGROUND vec3{0.8,0.8,1}
+#define BACKGROUND vec3{0,0,0}
 #define PI 3.14159265359f
 
 using namespace glm;
@@ -113,7 +113,7 @@ __device__ vec3 Render(const CUDA::device_ptr<Sphere>& spheres, Camera& camera, 
     vec3 current_color = vec3{1,1,1};
     float k = 2;
 
-    for (int ray_id = 0; ray_id < 10; ray_id++) {
+    for (int ray_id = 0; ray_id < 8; ray_id++) {
 
         // register hit
         Hit hit{-1};
@@ -175,7 +175,16 @@ __device__ LocalRandom CreateRandomGenerator(const CUDA::device_ptr<float>& rand
     };
 }
 
-__device__ Camera CreateCamera(const int xi, const int yi, const LocalRandom& random, int& random_id, const int display_width, const int display_height) {
+__device__ Camera CreateDefaultCamera(const int xi, const int yi, const int display_width, const int display_height) {
+    float x = (float)xi / (float)display_width - 0.5f;
+    float y = (float)yi / (float)display_height - 0.5f;
+    float aspect = (float)display_width / (float)display_height;
+    x *= aspect;
+    return {{0,0,0}, {x,y, -1}};
+
+}
+
+__device__ Camera CreateRandomCamera(const int xi, const int yi, const LocalRandom& random, int& random_id, const int display_width, const int display_height) {
     float x = ((float)xi + RandomFloat(random, random_id)) / (float)display_width - 0.5f;
     float y = ((float)yi + RandomFloat(random, random_id)) / (float)display_height - 0.5f;
     float aspect = (float)display_width / (float)display_height;
@@ -199,13 +208,15 @@ __global__ void RayTracer::RenderScreen(
         int random_id = 0;
 
         vec3 color{0,0,0};
+
+        // >>> OPTIMIZATION OFF
         for (int i = 0; i < RAY_COUNT; i++) {
-            Camera camera = CreateCamera(xi, yi, random, random_id, display_width, display_height);
+            Camera camera = CreateRandomCamera(xi, yi, random, random_id, display_width, display_height);
             color += Render(spheres, camera, random, random_id);
         }
         color = color / (float)RAY_COUNT;
-        color = {sqrtf(color.x), sqrtf(color.y), sqrtf(color.z)};
 
+        color = {sqrtf(color.x), sqrtf(color.y), sqrtf(color.z)};
         display_ptr.get()[xi + yi * display_width] = color;
     }
 }
