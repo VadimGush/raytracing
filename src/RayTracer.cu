@@ -8,9 +8,10 @@
 #include <device_launch_parameters.h>
 #include "Camera.h"
 
-#define RAY_COUNT 100
-#define BACKGROUND vec3{0,0,0}
+#define RAY_COUNT 10
+#define BACKGROUND vec3{0.8,0.8,1}
 #define PI 3.14159265359f
+#define FOV 55
 
 using namespace glm;
 
@@ -68,6 +69,15 @@ __device__ float Lick(float cosine, float refraction) {
 __device__ void FindSphere(const CUDA::device_ptr<Sphere>& spheres, const Camera& camera, Hit& hit, Sphere& current_sphere) {
     for (int i = 0; i < spheres.size(); i++) {
         const Sphere& sphere = spheres.get()[i];
+
+        /*
+         * This is actually a good way to test intersection of ray with sphere
+        float l = dot(normalize(camera.direction), sphere.position - camera.origin);
+        vec3 result = normalize(camera.direction) * l;
+        float d = length(sphere.position - (result + camera.origin));
+        if (d > sphere.radius) continue;
+         */
+
         Hit current = HitSphere(sphere, camera);
         if (current.distance < 0.0001f) continue;
         if (current.distance < hit.distance || hit.distance == -1) {
@@ -175,21 +185,16 @@ __device__ LocalRandom CreateRandomGenerator(const CUDA::device_ptr<float>& rand
     };
 }
 
-__device__ Camera CreateDefaultCamera(const int xi, const int yi, const int display_width, const int display_height) {
-    float x = (float)xi / (float)display_width - 0.5f;
-    float y = (float)yi / (float)display_height - 0.5f;
-    float aspect = (float)display_width / (float)display_height;
-    x *= aspect;
-    return {{0,0,0}, {x,y, -1}};
-
-}
-
 __device__ Camera CreateRandomCamera(const int xi, const int yi, const LocalRandom& random, int& random_id, const int display_width, const int display_height) {
     float x = ((float)xi + RandomFloat(random, random_id)) / (float)display_width - 0.5f;
     float y = ((float)yi + RandomFloat(random, random_id)) / (float)display_height - 0.5f;
     float aspect = (float)display_width / (float)display_height;
     x *= aspect;
-    return {{0,0,0}, {x,y, -1}};
+
+    float delta = tanf((FOV * PI / 180) / 2);
+    float d = delta / 0.5f;
+
+    return {{0, 0, 0}, {x * d, y * d, -1}};
 }
 
 __global__ void RayTracer::RenderScreen(
@@ -209,7 +214,6 @@ __global__ void RayTracer::RenderScreen(
 
         vec3 color{0,0,0};
 
-        // >>> OPTIMIZATION OFF
         for (int i = 0; i < RAY_COUNT; i++) {
             Camera camera = CreateRandomCamera(xi, yi, random, random_id, display_width, display_height);
             color += Render(spheres, camera, random, random_id);
