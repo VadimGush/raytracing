@@ -8,10 +8,10 @@
 #include <device_launch_parameters.h>
 #include "Camera.h"
 
-#define RAY_COUNT 10
-#define BACKGROUND vec3{0.8,0.8,1}
+#define RAY_COUNT 100
+#define BACKGROUND vec3{0.01,0.01,0.01}
 #define PI 3.14159265359f
-#define FOV 55
+#define FOV 30
 
 using namespace glm;
 
@@ -193,8 +193,20 @@ __device__ Camera CreateRandomCamera(const int xi, const int yi, const LocalRand
 
     float delta = tanf((FOV * PI / 180) / 2);
     float d = delta / 0.5f;
+    x *= d;
+    y *= d;
 
-    return {{0, 0, 0}, {x * d, y * d, -1}};
+    const vec3 lookat{0.3, -0.27, -0.7};
+    const vec3 origin{0,0,0};
+    const vec3 up{0,1,0};
+
+    vec3 w = normalize(lookat - origin);
+    vec3 a = normalize(cross(w,up));
+    vec3 v = cross(a,w);
+
+    vec3 direction = w + v * y + a * x;
+
+    return {origin, direction};
 }
 
 __global__ void RayTracer::RenderScreen(
