@@ -6,7 +6,7 @@
 #define RAYTRACING_RAYTRACER_H
 
 #include <glm/vec3.hpp>
-#include "utils/cuda_utils.h"
+#include "utils/cuda_memory.h"
 #include "Sphere.h"
 
 namespace RayTracer {

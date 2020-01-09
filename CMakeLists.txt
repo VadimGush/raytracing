@@ -5,7 +5,7 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo")
 
 project(raytracing LANGUAGES CXX CUDA)
 
-add_executable(raytracing src/Kernel.cu src/Display.cpp src/RayTracer.cu src/utils/logger.cpp src/utils/png.cpp src/utils/clang/file.cpp)
+add_executable(raytracing src/Kernel.cu src/Display.cpp src/RayTracer.cu src/utils/logger.cpp src/utils/png.cpp src/utils/file.cpp)
 
 # when we compile C++ files, GCC compiler doesn't know anything about
 # CUDA headers

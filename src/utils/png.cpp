@@ -4,7 +4,7 @@
 
 #include "png.h"
 
-#include "clang/file.h"
+#include "file.h"
 #include <iostream>
 #include <png.h>
 

@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <glm/vec3.hpp>
-#include "utils/cuda_utils.h"
+#include "utils/cuda_memory.h"
 
 class Display {
 public:

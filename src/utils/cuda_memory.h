@@ -5,6 +5,7 @@
 #ifndef RAYTRACING_CUDAPOINTER_H
 #define RAYTRACING_CUDAPOINTER_H
 
+#include <iostream>
 #include <cuda_runtime_api.h>
 #include <exception>
 #include <vector>
