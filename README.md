@@ -9,6 +9,6 @@ This project shows my first steps into raytracing. The program just renders a si
 
 Raytracer can render dielectrics (like glass or diamond), metal, and scatter materials.
 
-## TODO
+## Literature
  
- * Use Intel Open Image Denoise
+ * [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
