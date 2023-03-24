@@ -11,4 +11,4 @@ This project shows my first steps into raytracing. The program just renders a si
 
 ## Source Materials
  
- * [Ray Tracing in One Weekend](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
+ * [Book "Ray Tracing in One Weekend" by Peter Shirley](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
