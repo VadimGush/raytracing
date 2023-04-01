@@ -9,6 +9,6 @@ This project shows my first steps into raytracing. The program just renders a si
 
  * Rendering of dielectrics (glass, diamond, etc), metal, and scatter materials.
 
-## Source Materials
+## Resources
  
  * [Book "Ray Tracing in One Weekend" by Peter Shirley](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
