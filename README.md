@@ -11,4 +11,4 @@ This project shows my first steps into raytracing. The program just renders a si
 
 ## Resources
  
- * [Book "Ray Tracing in One Weekend" by Peter Shirley](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8)
+ * [Book "Ray Tracing in One Weekend" by Peter Shirley](https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8) - book on how to implement a ray-tracer on CPU. I've ported the entire code to CUDA to be run on NVidia GPUs.
